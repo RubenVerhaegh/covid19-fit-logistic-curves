@@ -166,6 +166,8 @@ generic <- function(N0, parameters, days) {
   for (i in 2:days) {
     N  <- generic[i-1]
     dN <- r * power(N, alpha) * power((1 - power(N/K, beta)), gamma)
+    # Line below is to fix discretisation errors
+    dN <- max(dN, 0)
     generic[i] <- N + dN
   }
   return(generic)
@@ -173,12 +175,13 @@ generic <- function(N0, parameters, days) {
 
 
 # Draws a plot for a logistic model with different sets of input parameters
-parameter_plots <- function(func, N0, parameters, days) {
+parameter_plots <- function(func, N0, parameters, days, var="", var_index=NA) {
   day <- c(1:days)
   cases <- data.frame()
   
   nr_inputs <- length(parameters[[1]])
   nr_parameters <- length(parameters)
+  colors <- rainbow(nr_inputs)
   
   inputs <- data.frame()
   for (i in 1:nr_inputs) {
@@ -190,18 +193,26 @@ parameter_plots <- function(func, N0, parameters, days) {
   }
   
   # Plot t against N
-  cases <- func(N0, as.numeric(inputs[1,]), days)
-  plot(day, cases, pch=16, xlab="t", ylab="N")
-  for (i in 2:nr_inputs) {
-    points(day, func(N0, as.numeric(inputs[i,]), days), pch = 1)
+  xrange <- range(day)
+  yrange <- range(func(N0, as.numeric(inputs[1,]), days))
+  plot(xrange, yrange, type="n", xlab="t", ylab="N", cex.lab=1.1)
+  for (i in 1:nr_inputs) {
+    lines(day, func(N0, as.numeric(inputs[i,]), days), col = colors[i], lwd = 3)
+  }
+  if (!is.na(var_index)) {
+    legend(0, yrange[2], legend=paste(var, "=", inputs[[var_index]]), lty = 1, lwd = 3, col = colors)
   }
   
   # Plot t against dN/dt
   day <- day[1:length(day) - 1]
-  cases <- cummulative_to_increase(func(N0, as.numeric(inputs[1,]), days))
-  plot(day, cases, pch=16, xlab="t", ylab="dN/dt")
-  for (i in 2:nr_inputs) {
-    points(day, cummulative_to_increase(func(N0, as.numeric(inputs[i,]), days)), pch = 1)
+  xrange <- range(day)
+  yrange <- range(cummulative_to_increase(func(N0, as.numeric(inputs[1,]), days)))
+  plot(xrange, yrange, type="n", xlab="t", ylab="dN/dt", cex.lab=1.1)
+  for (i in 1:nr_inputs) {
+    lines(day, cummulative_to_increase(func(N0, as.numeric(inputs[i,]), days)), col = colors[i], lwd = 3)
+  }
+  if (!is.na(var_index)) {
+    legend(0, yrange[2], legend=paste(var, "=", inputs[[var_index]]), lty = 1, lwd = 3, col = colors)
   }
 }
 
@@ -392,4 +403,4 @@ parameter_plots(generic, 1, list(c(0.15, 0.15, 0.15),
                                  c(1000, 1000, 1000), 
                                  c(1, 1, 1),
                                  c(1, 1, 1),
-                                 c(0.9, 1, 1.5)), 100)
+                                 c(1, 1.5, 2)), 100, "gamma", 5)
