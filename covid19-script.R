@@ -36,7 +36,7 @@ country_to_index <- function(country) {
 }
 
 # Returns a dataframe with one row containing the daily
-# cummulative confirmed cases for a country as given by a string
+# cumulative confirmed cases for a country as given by a string
 daily_cases_for_country <- function(country, min_cases = 100) {
   index <- country_to_index(country)
   untruncated_row <- data[index, 5:ncol(data)]
@@ -54,11 +54,11 @@ daily_cases_for_country <- function(country, min_cases = 100) {
   return(untruncated_row[, first_positive:ncol(untruncated_row)])
 }
 
-cummulative_to_increase <- function(cummulative) {
-  cummulative_vector <- as.numeric(as.vector(cummulative))
-  result <- numeric(length(cummulative_vector) - 1)
+cumulative_to_increase <- function(cumulative) {
+  cumulative_vector <- as.numeric(as.vector(cumulative))
+  result <- numeric(length(cumulative_vector) - 1)
   for(i in 1 : length(result)) {
-    result[i] <- cummulative_vector[i+1] - cummulative_vector[i]
+    result[i] <- cumulative_vector[i+1] - cumulative_vector[i]
   }
   return(result)
 }
@@ -206,10 +206,10 @@ parameter_plots <- function(func, N0, parameters, days, var="", var_index=NA) {
   # Plot t against dN/dt
   day <- day[1:length(day) - 1]
   xrange <- range(day)
-  yrange <- range(cummulative_to_increase(func(N0, as.numeric(inputs[1,]), days)))
+  yrange <- range(cumulative_to_increase(func(N0, as.numeric(inputs[1,]), days)))
   plot(xrange, yrange, type="n", xlab="t", ylab="dN/dt", cex.lab=1.1)
   for (i in 1:nr_inputs) {
-    lines(day, cummulative_to_increase(func(N0, as.numeric(inputs[i,]), days)), col = colors[i], lwd = 3)
+    lines(day, cumulative_to_increase(func(N0, as.numeric(inputs[i,]), days)), col = colors[i], lwd = 3)
   }
   if (!is.na(var_index)) {
     legend(0, yrange[2], legend=paste(var, "=", inputs[[var_index]]), lty = 1, lwd = 3, col = colors)
@@ -275,16 +275,16 @@ update_search_bounds <- function(prev_min, prev_max, prev_steps, best_values){
 
 
 
-test_fit_cummulative <- function(df, fit) {
-  increase <- cummulative_to_increase(df[1,])
-  increase_fit <- cummulative_to_increase(fit)
+test_fit_cumulative <- function(df, fit) {
+  increase <- cumulative_to_increase(df[1,])
+  increase_fit <- cumulative_to_increase(fit)
   probabilities <- increase_fit / sum(increase_fit)
   
   print(chisq.test(increase, p = probabilities))
 }
 
 # Plots fit (vector) to actual data (data frame)
-plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c("??"), title_start = "Cummulative daily confirmed cases in ") {
+plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c("??"), title_start = "cumulative daily confirmed cases in ") {
   day <- c(1:ncol(actual_data))
   cases <- actual_data[1,]
   
@@ -379,9 +379,9 @@ fit_function_to_country <- function(func, country, min, max, search_width, searc
     fit <- func(df[1,1], best_values, ncol(df))
     if(make_plot) {
       plot_fit(df, fit, country, func, best_values)
-      plot_fit(as.data.frame(t(cummulative_to_increase(df))), cummulative_to_increase(fit), country, func, best_values, "Daily new confirmed cases in ")
+      plot_fit(as.data.frame(t(cumulative_to_increase(df))), cumulative_to_increase(fit), country, func, best_values, "Daily new confirmed cases in ")
     }
-    if(perform_test) test_fit_cummulative(df, fit)
+    if(perform_test) test_fit_cumulative(df, fit)
   }
   
   output <- list()
@@ -397,7 +397,7 @@ fit_function_to_country(logistic, "Netherlands", c(0), c(10), 10, 10, TRUE, TRUE
 fit_function_to_country(verhulst, "Netherlands", c(0,1), c(1,1000000), 50, 10, TRUE, TRUE, TRUE)
 fit_function_to_country(verhulst, "US", c(0,1), c(3,1000000000),5, 8, TRUE, TRUE, TRUE)
 fit_function_to_country(generic,  "Global", c(0,1,0,0,0), c(0.5,1000000000,3,3,3),10, 8, TRUE, TRUE, TRUE)
-fit_function_to_country(generic,  "Netherlands", c(0,50000,0,0,0), c(2,1000000,3,3,3), 2, 8, TRUE, TRUE, TRUE)
+fit_function_to_country(generic,  "Netherlands", c(0,50000,0,0,0), c(2,1000000,3,3,3), 10, 8, TRUE, TRUE, TRUE)
 
 parameter_plots(generic, 1, list(c(0.15, 0.15, 0.15), 
                                  c(1000, 1000, 1000), 
