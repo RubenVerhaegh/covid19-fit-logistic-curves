@@ -100,6 +100,21 @@ statistical_distance <- function(vec, df) {
   return(dist)
 }
 
+chisqr <- function(observed, estimated) {
+  observed <- as.numeric(observed)
+  observed_inc <- cumulative_to_increase(observed)
+  estimated_inc <- cumulative_to_increase(estimated)
+  
+  dist <- 0
+  for (i in 1:length(estimated_inc)) {
+    if (observed_inc[i] != 0) {
+      dist <- dist + observed_inc[i] * log(observed_inc[i] / estimated_inc[i])
+    }
+  }
+  
+  return(2 * dist)
+}
+
 power <- function(base, exponent) {
   (abs(base) ^ exponent) * sign(base)
 }
@@ -393,6 +408,95 @@ fit_function_to_country <- function(func, country, min, max, search_width, searc
   output[[2]] <- min_dist
   return(output)
 }
+
+
+
+generic_poisson_regression <- function(cum_daily, K, beta) {
+  if (beta == 0) return(NaN)
+  inc_daily <- cumulative_to_increase(cum_daily)
+  cum_daily <- cum_daily[1:length(cum_daily) - 1]
+  logterm   <- log(cum_daily)
+  logfrac   <- log(1 - power(cum_daily / K, beta))
+  logfrac[which(is.infinite(logfrac))] <- NaN
+  
+  df <- data.frame(cum_daily, inc_daily, logterm, logfrac)
+  names(df) <- c("cumulative", "increase", "log", "logfrac")
+  
+  fit <- glm(increase ~ logterm + logfrac, data = df, family = poisson())
+  return(as.numeric(fit[[1]]))
+}
+
+generic_poisson_regression_grid <- function(cum_daily, min, max, nstep) {
+  K_min   <- min[1]
+  K_max   <- max[1]
+  K_nstep <- nstep[1]
+  if (K_nstep == 0) {
+    K_step <- 0
+  } else {
+    K_step <- (K_max - K_min) / K_nstep
+  }
+  
+  beta_min   <- min[2]
+  beta_max   <- max[2]
+  beta_nstep <- nstep[2]
+  if (beta_nstep == 0) {
+    beta_step <- 0
+  } else {
+    beta_step <- (beta_max - beta_min) / beta_nstep
+  }
+  
+  
+  min_dist <- .Machine$integer.max
+  best_values <- rep(.Machine$integer.max, 5)
+  for(i in 0:K_nstep) {
+    K <- K_min + i * K_step
+    for (j in 0:beta_nstep) {
+      beta <- beta_min + j * beta_step
+      result <- generic_poisson_regression(as.numeric(cum_daily), K, beta)
+      
+      if (!is.na(result)) {
+        r     <- exp(result[1])
+        alpha <- result[2]
+        gamma <- result[3]
+        
+        curr_values <- c(r,K,alpha,beta,gamma)
+        fit <- generic(cum_daily[1,1], curr_values, ncol(cum_daily))
+        
+        dist <- chisqr(cum_daily, fit)
+        if (dist < min_dist) {
+          min_dist <- dist
+          best_values <- curr_values
+        }
+      }
+    }
+  }
+  
+  return(best_values)
+}
+
+generic_poisson_regression_country <- function(country, min, max, nstep, search_depth, print_progress = FALSE) {
+  cum_daily <- daily_cases_for_country(country)[1,]
+  
+  best_values <- rep(.Machine$integer.max, 5)
+  for (i in 1:search_depth) {
+    if(print_progress) {
+      print(i)
+    }
+    
+    best_values <- generic_poisson_regression_grid(cum_daily, min, max, nstep)
+    best_K <- best_values[2]
+    best_beta <- best_values[4]
+    new_bounds  <- update_search_bounds(min, max, nstep, c(best_K, best_beta))
+    min <- new_bounds[[1]]
+    max <- new_bounds[[2]]
+  }
+  
+  print(best_values)
+  fit <- generic(cum_daily[1,1], best_values, ncol(cum_daily))
+  print(chisqr(cum_daily, fit))
+  plot_fit(cum_daily, fit)
+}
+
 
 
 # Example queries
