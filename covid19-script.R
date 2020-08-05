@@ -1,5 +1,5 @@
 library(MASS)
-library(emdist)
+library(EstimationTools)
 # Reading the input data
 ##########################################################
 data <- read.csv("data/time_series_covid19_confirmed_global.csv", header=TRUE, stringsAsFactors = FALSE, sep=",")
@@ -347,6 +347,7 @@ fit_function <- function(func, df, min, max, steps) {
 
 fit_function_to_country <- function(func, country, min, max, search_width, search_depth, 
                                     print_progress=FALSE, make_plot=FALSE, perform_test = FALSE) {
+  start_time <- Sys.time()
   nr_parameters <- length(min)
   if(length(max) != nr_parameters) {
     stop(paste("[!] `min' defined for", length(min), "parameters,",
@@ -374,6 +375,9 @@ fit_function_to_country <- function(func, country, min, max, search_width, searc
 #   print(max)
 #    print("---------------------------")
   }
+  
+  end_time <- Sys.time()
+  print(paste("Estimation took", end_time - start_time, "seconds"))
   
   if(make_plot || perform_test) {
     fit <- func(df[1,1], best_values, ncol(df))
