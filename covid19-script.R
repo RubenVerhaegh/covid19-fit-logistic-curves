@@ -86,14 +86,15 @@ counts_to_observations <- function(counts) {
 
 
 statistical_distance <- function(df, vec) {
+  df <- as.numeric(df)
   len <- length(vec)
-  if (len != ncol(df)) {
+  if (len != length(df)) {
     stop("Tried to compare to lists of different lengthts")
   }
   
   dist <- 0
   for (i in 1:length(vec)) {
-    observed <- df[1,i]
+    observed <- df[i]
     expected <- vec[i]
     dist <- dist + abs(observed - expected)
   }
