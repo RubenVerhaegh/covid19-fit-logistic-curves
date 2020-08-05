@@ -85,7 +85,7 @@ counts_to_observations <- function(counts) {
 
 
 
-statistical_distance <- function(vec, df) {
+statistical_distance <- function(df, vec) {
   len <- length(vec)
   if (len != ncol(df)) {
     stop("Tried to compare to lists of different lengthts")
@@ -107,6 +107,9 @@ chisqr <- function(observed, estimated) {
   
   dist <- 0
   for (i in 1:length(estimated_inc)) {
+    if (is.na(estimated_inc[i])) {
+      return(.Machine$integer.max)
+    }
     if (observed_inc[i] != 0) {
       dist <- dist + observed_inc[i] * log(observed_inc[i] / estimated_inc[i])
     }
@@ -251,7 +254,7 @@ update_counters <- function(counter, goal) {
   return(counter)
 }
 
-update_search_bounds <- function(prev_min, prev_max, prev_steps, best_values){
+update_search_bounds <- function(prev_min, prev_max, prev_steps, best_values, outer_min = prev_min, outer_max = prev_max){
   nr_parameters <- length(prev_min)
   if(length(prev_max) != nr_parameters || length(prev_steps) != nr_parameters || length(best_values) != nr_parameters) {
     stop(paste("[!] `min' has length", length(prev_min), 
@@ -270,10 +273,10 @@ update_search_bounds <- function(prev_min, prev_max, prev_steps, best_values){
     steps <- prev_steps[i]
     step_size <- (max - min) / steps
     
-    if (best == min) {
+    if (best == outer_min[i]) {
       new_min[i] <- best
       new_max[i] <- best + step_size
-    } else if (best == max) {
+    } else if (best == outer_max[i]) {
       new_min[i] <- best - step_size
       new_max[i] <- best
     } else {
@@ -299,7 +302,9 @@ test_fit_cumulative <- function(df, fit) {
 }
 
 # Plots fit (vector) to actual data (data frame)
-plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c("??"), title_start = "cumulative daily confirmed cases in ") {
+plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c("??")) {
+  title_start <- "Cumulative daily confirmed cases in "
+  # Plot cumulative cases
   day <- c(1:ncol(actual_data))
   cases <- actual_data[1,]
   
@@ -315,8 +320,31 @@ plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c
   plot(day, cases, pch = 16, title(main = paste(title_start,
                                                 country, " (", start_date, " - ", end_date, ")\n",
                                                 "Estimates: ", estimates, sep = "")))
-  points(day, fit, pch = 1)
-  legend(0, max(cases), legend=c("Actual data", "Estimation"), pch = c(16, 1))
+  lines(day, fit, pch = 1, col = "green", lwd = 2)
+  legend('topleft', legend=c("Actual data", "Estimation"), pch = c(16, NA), lty = c(NA, 1), 
+         col = c('black', 'green'), lwd = 2, inset = 0.03)
+  
+  
+  # Plot daily increase
+  title_start <- "Daily new confirmed cases in "
+  actual_data <- as.data.frame(t(cumulative_to_increase(actual_data)))
+  fit <- cumulative_to_increase(fit)
+  day <- c(1:ncol(actual_data))
+  cases <- actual_data[1,]
+  
+  if (parameters != c("??")) parameters <- round(parameters, 3)
+  estimates <- paste("(", parameters[1], sep="")
+  for (i in 2:length(parameters)) {
+    estimates <- paste(estimates, ", ", parameters[i], sep="")
+  }
+  estimates <- paste(estimates, ")", sep="")
+  
+  plot(day, cases, pch = 16, title(main = paste(title_start,
+                                                country, " (", start_date, " - ", end_date, ")\n",
+                                                "Estimates: ", estimates, sep = "")))
+  lines(day, fit, pch = 1, col = "green", lwd = 2)
+  legend('topright', legend=c("Actual data", "Estimation"), pch = c(16, NA), lty = c(NA, 1), 
+         col = c('black', 'green'), lwd = 2, inset = 0.03)
 }
 
 
@@ -341,7 +369,7 @@ fit_function <- function(func, df, min, max, steps) {
   counter <- integer(nr_parameters)
   for(i in 1:nr_steps) {
     values <- min + counter * step_sizes
-    dist <- statistical_distance(func(N0, values, days), df)
+    dist <- statistical_distance(df, func(N0, values, days))
     if(is.na(dist)) {
       print(N0)
       print(values)
@@ -361,13 +389,16 @@ fit_function <- function(func, df, min, max, steps) {
 }
 
 fit_function_to_country <- function(func, country, min, max, search_width, search_depth, 
-                                    print_progress=FALSE, make_plot=FALSE, perform_test = FALSE) {
+                                    print_progress=FALSE, make_plot=FALSE) {
   start_time <- Sys.time()
   nr_parameters <- length(min)
   if(length(max) != nr_parameters) {
     stop(paste("[!] `min' defined for", length(min), "parameters,",
                "`max' defined for", length(max), "parameters. (Should be the same)"))
   }
+  outer_min <- min
+  outer_max <- max
+  
   df <- daily_cases_for_country(country)
   steps <- rep(search_width, nr_parameters)
   
@@ -381,26 +412,19 @@ fit_function_to_country <- function(func, country, min, max, search_width, searc
     best_values <- result[[1]]
     min_dist <- result[[2]]
     
-    new_bounds <- update_search_bounds(min, max, steps, best_values)
+    new_bounds <- update_search_bounds(min, max, steps, best_values, outer_min, outer_max)
     min <- new_bounds[[1]]
     max <- new_bounds[[2]]
-#    print("min:")
-#    print(min)
-#    print("max:")
-#   print(max)
-#    print("---------------------------")
   }
   
   end_time <- Sys.time()
   print(paste("Estimation took", end_time - start_time, "seconds"))
   
-  if(make_plot || perform_test) {
+  if(make_plot) {
     fit <- func(df[1,1], best_values, ncol(df))
-    if(make_plot) {
-      plot_fit(df, fit, country, func, best_values)
-      plot_fit(as.data.frame(t(cumulative_to_increase(df))), cumulative_to_increase(fit), country, func, best_values, "Daily new confirmed cases in ")
-    }
-    if(perform_test) test_fit_cumulative(df, fit)
+    plot_fit(df, fit, country, func, best_values)
+    plot_fit(as.data.frame(t(cumulative_to_increase(df))), cumulative_to_increase(fit), 
+             country, func, best_values, "Daily new confirmed cases in ")
   }
   
   output <- list()
@@ -477,6 +501,8 @@ generic_poisson_regression_grid <- function(cum_daily, min, max, nstep) {
 generic_poisson_regression_country <- function(country, min, max, nstep, search_depth, print_progress = FALSE) {
   cum_daily <- daily_cases_for_country(country)[1,]
   
+  outer_min <- min
+  outer_max <- max
   best_values <- rep(.Machine$integer.max, 5)
   for (i in 1:search_depth) {
     if(print_progress) {
@@ -486,7 +512,7 @@ generic_poisson_regression_country <- function(country, min, max, nstep, search_
     best_values <- generic_poisson_regression_grid(cum_daily, min, max, nstep)
     best_K <- best_values[2]
     best_beta <- best_values[4]
-    new_bounds  <- update_search_bounds(min, max, nstep, c(best_K, best_beta))
+    new_bounds  <- update_search_bounds(min, max, nstep, c(best_K, best_beta), outer_min, outer_max)
     min <- new_bounds[[1]]
     max <- new_bounds[[2]]
   }
@@ -494,7 +520,7 @@ generic_poisson_regression_country <- function(country, min, max, nstep, search_
   print(best_values)
   fit <- generic(cum_daily[1,1], best_values, ncol(cum_daily))
   print(chisqr(cum_daily, fit))
-  plot_fit(cum_daily, fit)
+  plot_fit(cum_daily, fit, country, generic, best_values)
 }
 
 
