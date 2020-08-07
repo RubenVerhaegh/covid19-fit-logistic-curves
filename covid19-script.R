@@ -1,4 +1,5 @@
 library(MASS)
+library(viridis)
 library(EstimationTools)
 # Reading the input data
 ##########################################################
@@ -347,6 +348,61 @@ plot_fit <- function(actual_data, fit, country = "??", func = NA, parameters = c
   legend('topright', legend=c("Actual data", "Estimation"), pch = c(16, NA), lty = c(NA, 1), 
          col = c('black', 'green'), lwd = 2, inset = 0.03)
 }
+
+plot_fits <- function(actual_data, fits, legend_entries, colors = rainbow(length(fits))) {
+  nr_fits <- length(fits)
+  orig <- as.numeric(actual_data[1,])
+  
+  ndays <- length(orig)
+  days <- c(1:ndays)
+  
+  xrange <- range(days)
+  yrange <- range(orig)
+  plot(xrange, yrange, xlab="Day", ylab="Cumulative confirmed cases", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  points(days, orig, pch = 16)
+  for (i in 1:nr_fits) {
+    lines(days, fits[[i]], col = colors[i], lwd = 2)
+  }
+  legend('topleft', legend = c("Actual data", legend_entries), 
+         lty = c(NA, rep(1, nr_fits)), pch = c(16, rep(NA, nr_fits)), 
+         col = c('black', colors), lwd = 2, cex = 1.1, inset = 0.03)
+  
+  
+  incr <- cumulative_to_increase(orig)
+  days <- c(1:(ndays-1))
+  xrange <- range(days)
+  yrange <- range(incr)
+  plot(xrange, yrange, xlab="Day", ylab="Daily increase in cases", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  points(days, incr, pch = 16)
+  for (i in 1:nr_fits) {
+    lines(days, cumulative_to_increase(fits[[i]]), col = colors[i], lwd = 2)
+  }
+  legend('topright', legend = c("Actual data", legend_entries), 
+         lty = c(NA, rep(1, nr_fits)), pch = c(16, rep(NA, nr_fits)), 
+         col = c('black', colors), lwd = 2, cex = 1.1, inset = 0.03)
+}
+
+temp_plot <- function() {
+  actual_data <- daily_cases_for_country("Netherlands")
+  N0    <- actual_data[1,1]
+  ndays <- ncol(actual_data)
+  
+  fit4  <- generic(N0, c(0.955, 69177, 0.782, 1.889, 5.173), ndays)
+  fit5  <- generic(N0, c(1.973, 748584, 0.795, 0.719, 24.46), ndays)
+  fit6  <- generic(N0, c(0.699, 303416, 0.863, 1.117, 26.78), ndays)
+  fit7  <- generic(N0, c(1.069, 257882, 0.827, 0.951, 22.5), ndays)
+  fit8  <- generic(N0, c(1.030, 144038, 0.782, 1.763, 22.37), ndays)
+  fit9  <- generic(N0, c(1.232, 129666, 0.75, 2.183, 28.42), ndays)
+  fit10 <- generic(N0, c(0.481, 150656, 0.878, 1.804, 28.32), ndays)
+  fit11 <- generic(N0, c(0.626, 130507, 0.838, 2.027, 26.54), ndays)
+  fit12 <- generic(N0, c(0.916, 127327, 0.788, 2.110, 26.18), ndays)
+  
+  fits <- list(fit4, fit5, fit9, fit12)
+  legend_entries <- paste("Estimation (w=", c(4,5,9,12), ")", sep = "")
+  
+  plot_fits(actual_data, fits, legend_entries, c(viridis(4)[2], 'orange', viridis(4)[3], viridis(4)[4]))
+}
+temp_plot()
 
 
 
