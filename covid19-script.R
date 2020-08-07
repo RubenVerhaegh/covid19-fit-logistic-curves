@@ -584,11 +584,11 @@ generic_poisson_regression_country <- function(country, min, max, nstep, search_
 
 # Example queries
 ##################################################################
-fit_function_to_country(logistic, "Netherlands", c(0), c(10), 10, 10, TRUE, TRUE, TRUE)
-fit_function_to_country(verhulst, "Netherlands", c(0,1), c(1,1000000), 50, 10, TRUE, TRUE, TRUE)
-fit_function_to_country(verhulst, "US", c(0,1), c(3,1000000000),5, 8, TRUE, TRUE, TRUE)
-fit_function_to_country(generic,  "Global", c(0,1,0,0,0), c(0.5,1000000000,3,3,3),10, 8, TRUE, TRUE, TRUE)
-fit_function_to_country(generic,  "Netherlands", c(0,50000,0,0,0), c(2,1000000,3,3,3), 10, 8, TRUE, TRUE, TRUE)
+fit_function_to_country(logistic, "Netherlands", c(0), c(10), 10, 10, TRUE, TRUE)
+fit_function_to_country(verhulst, "Netherlands", c(0,1), c(1,1000000), 50, 10, TRUE, TRUE)
+fit_function_to_country(verhulst, "US", c(0,1), c(3,1000000000),5, 8, TRUE, TRUE)
+fit_function_to_country(generic,  "Global", c(0,1,0,0,0), c(0.5,1000000000,3,3,3),10, 8, TRUE, TRUE)
+fit_function_to_country(generic,  "Netherlands", c(0,50000,0,0,0), c(2,250000,3,3,3), 3, 10, TRUE, TRUE)
 
 parameter_plots(generic, 1, list(c(0.15, 0.15, 0.15), 
                                  c(1000, 1000, 1000), 
